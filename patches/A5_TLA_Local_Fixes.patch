@@ -1,0 +1,168 @@
+diff --git a/third_party/ascend/language/tla/cpp/tla_builder.cc b/third_party/ascend/language/tla/cpp/tla_builder.cc
+index e4142e92a..6d49e3b8d 100644
+--- a/third_party/ascend/language/tla/cpp/tla_builder.cc
++++ b/third_party/ascend/language/tla/cpp/tla_builder.cc
+@@ -1230,12 +1230,15 @@ void init_tla_builder(py::module &&m) {
+               // bf16/f16 (128) -> f8 (256), lane count = total_bits / out_bits.
+               result = self.create<hivmave::VFTruncFOp>(
+                                outVecTy, src, mask, roundAttr,
+-                               builder.getBoolAttr(sat), partAttr)
++                               builder.getBoolAttr(sat), partAttr,
++                               hivmave::VCVT_ModeTypeAttr{})
+                            .getResult();
+             } else if (kind == "extf") {
+               // vextf widens to a full register: 2048 / out_bits lanes.
+               result =
+-                  self.create<hivmave::VFExtFOp>(outVecTy, src, mask, partAttr)
++                  self.create<hivmave::VFExtFOp>(
++                          outVecTy, src, mask, partAttr,
++                          hivmave::VCVT_ModeTypeAttr{})
+                       .getResult();
+             } else if (kind == "s2f" || kind == "u2f") {
+               // int -> fp conversion, sign chosen by the source dtype.
+diff --git a/third_party/ascend/unittest/tla_ut/cube/mmad_l0.py b/third_party/ascend/unittest/tla_ut/cube/mmad_l0.py
+index 30956a6dc..286c42962 100644
+--- a/third_party/ascend/unittest/tla_ut/cube/mmad_l0.py
++++ b/third_party/ascend/unittest/tla_ut/cube/mmad_l0.py
+@@ -136,7 +136,6 @@ def catlass_mmad_l0_expected(
+             tla.view(C, (M, N)),
+             tla.FixpipeL0C2GMParams(
+                 dma_mode=tla.FixpipeDMAMode.NZ2ND,
+-                unit_flag_ctrl=tla.UnitFlagMode.DISABLED,
+             ),
+         )
+         tla.sync.barrier(tla.sync.PIPE.ALL)
+diff --git a/third_party/ascend/unittest/tla_ut/cube/mmad_l0_plain_extended.py b/third_party/ascend/unittest/tla_ut/cube/mmad_l0_plain_extended.py
+index 5bdf52660..aa25efc4f 100644
+--- a/third_party/ascend/unittest/tla_ut/cube/mmad_l0_plain_extended.py
++++ b/third_party/ascend/unittest/tla_ut/cube/mmad_l0_plain_extended.py
+@@ -125,7 +125,7 @@ def plain_mmad(A, B, C, Clear, M: tl.constexpr, N: tl.constexpr, K: tl.constexpr
+         tla.sync.wait_flag(tla.sync.PIPE.M, tla.sync.PIPE.F, 0)
+         tla.store_l0c_to_gm(
+             acc, tla.view(C, (M, N)),
+-            tla.FixpipeL0C2GMParams(dma_mode=tla.FixpipeDMAMode.NZ2ND, unit_flag_ctrl=tla.UnitFlagMode.DISABLED))
++            tla.FixpipeL0C2GMParams(dma_mode=tla.FixpipeDMAMode.NZ2ND))
+         tla.sync.barrier(tla.sync.PIPE.ALL)
+ 
+ 
+@@ -180,10 +180,10 @@ def subview_mmad(A, B, TileOut, FullOut, a_offset, b_offset, c_offset, DYNAMIC:
+         tla.sync.wait_flag(tla.sync.PIPE.M, tla.sync.PIPE.F, 0)
+         tla.store_l0c_to_gm(
+             c_window, tla.view(TileOut, (32, 64)),
+-            tla.FixpipeL0C2GMParams(dma_mode=tla.FixpipeDMAMode.NZ2ND, unit_flag_ctrl=tla.UnitFlagMode.DISABLED))
++            tla.FixpipeL0C2GMParams(dma_mode=tla.FixpipeDMAMode.NZ2ND))
+         tla.store_l0c_to_gm(
+             c_root, tla.view(FullOut, (32, 128)),
+-            tla.FixpipeL0C2GMParams(dma_mode=tla.FixpipeDMAMode.NZ2ND, unit_flag_ctrl=tla.UnitFlagMode.DISABLED))
++            tla.FixpipeL0C2GMParams(dma_mode=tla.FixpipeDMAMode.NZ2ND))
+         tla.sync.barrier(tla.sync.PIPE.ALL)
+ 
+ 
+diff --git a/third_party/ascend/unittest/tla_ut/cube/mmad_l0_sync.py b/third_party/ascend/unittest/tla_ut/cube/mmad_l0_sync.py
+index bac4a83b7..ec7e34200 100644
+--- a/third_party/ascend/unittest/tla_ut/cube/mmad_l0_sync.py
++++ b/third_party/ascend/unittest/tla_ut/cube/mmad_l0_sync.py
+@@ -112,8 +112,7 @@ def sync_mmad(A, B, First, Final, Clear, M: tl.constexpr, N: tl.constexpr, K: tl
+             if pass_id == 0:
+                 tla.store_l0c_to_gm(
+                     acc, tla.view(First, (M, N)),
+-                    tla.FixpipeL0C2GMParams(dma_mode=tla.FixpipeDMAMode.NZ2ND,
+-                                            unit_flag_ctrl=tla.UnitFlagMode.DISABLED))
++                    tla.FixpipeL0C2GMParams(dma_mode=tla.FixpipeDMAMode.NZ2ND))
+                 if MANUAL:
+                     # FIX must finish reading old C before the next MMAD writes it.
+                     tla.sync.set_flag(tla.sync.PIPE.F, tla.sync.PIPE.M, 0)
+@@ -121,8 +120,7 @@ def sync_mmad(A, B, First, Final, Clear, M: tl.constexpr, N: tl.constexpr, K: tl
+             else:
+                 tla.store_l0c_to_gm(
+                     acc, tla.view(Final, (M, N)),
+-                    tla.FixpipeL0C2GMParams(dma_mode=tla.FixpipeDMAMode.NZ2ND,
+-                                            unit_flag_ctrl=tla.UnitFlagMode.DISABLED))
++                    tla.FixpipeL0C2GMParams(dma_mode=tla.FixpipeDMAMode.NZ2ND))
+         if MANUAL:
+             tla.sync.wait_flag(tla.sync.PIPE.M, tla.sync.PIPE.MTE1, 0)
+             if SLOTS == 2:
+diff --git a/third_party/ascend/unittest/tla_ut/dma/copy.py b/third_party/ascend/unittest/tla_ut/dma/copy.py
+index bfd388ee4..cdfb0b4f9 100644
+--- a/third_party/ascend/unittest/tla_ut/dma/copy.py
++++ b/third_party/ascend/unittest/tla_ut/dma/copy.py
+@@ -124,11 +124,10 @@ def logical_slice_route(src, dst, MATRIX_OFFSET: tl.constexpr, ROW_STEP: tl.cons
+ 
+ 
+ @tla.jit
+-def pointer_view_route(Src, Dst):
++def parent_subview_route(src, dst):
+     with tla.scope.cube():
+-        src = tla.view(Src, (32, 64), strides=(96, 1), offsets=(16, 16), space="l1")
+-        dst = tla.view(Dst, (32, 64), space="l0a")
+-        tla.copy_l1_to_l0(src, dst)
++        tile = tla.subview(src, (16, 16), (32, 64))
++        tla.copy_l1_to_l0(tile, dst)
+ 
+ 
+ @builtin
+@@ -213,7 +212,10 @@ def check_l12l0_contracts():
+         assert "32x64xf16" in copy
+         assert f"strided<[{96 * step}, 1], offset: {origin * 96 + 16}>" in copy
+         assert "scf.for" not in text
+-    mod, ctx = compile_offline(pointer_view_route, {"Src": "*fp16", "Dst": "*fp16"}, {})
++    mod, ctx = compile_offline(parent_subview_route, {
++        "src": tla.buffer_type((64, 96), tl.float16, "l1"),
++        "dst": tla.buffer_type((32, 64), tl.float16, "l0a"),
++    }, {})
+     text = str(lower_offline(mod, ctx))
+     copy = next(line for line in text.splitlines() if "hivm.hir.l12l0 " in line)
+     assert "32x64xf16" in copy and "strided<[96, 1], offset: 1552>" in copy
+diff --git a/third_party/ascend/unittest/tla_ut/test_pr_integration_api.py b/third_party/ascend/unittest/tla_ut/test_pr_integration_api.py
+new file mode 100644
+index 000000000..119e17436
+--- /dev/null
++++ b/third_party/ascend/unittest/tla_ut/test_pr_integration_api.py
+@@ -0,0 +1,47 @@
++"""Check cross-PR caller compatibility without loading a native extension.
++
++This is a source-level regression, not an IR or device execution test.
++"""
++import ast
++from pathlib import Path
++import unittest
++
++
++UT = Path(__file__).resolve().parent
++TLA = UT.parents[1] / "language" / "tla"
++
++
++class PRIntegrationAPI(unittest.TestCase):
++    def test_mmad_fixpipe_keywords_match_public_configuration(self):
++        definitions = ast.parse((TLA / "dma.py").read_text())
++        fields = {
++            node.name: {field.target.id for field in node.body if isinstance(field, ast.AnnAssign)}
++            for node in definitions.body
++            if isinstance(node, ast.ClassDef) and node.name.startswith("FixpipeL0C2")
++        }
++        errors = []
++        for path in sorted((UT / "cube").glob("mmad_l0*.py")):
++            for call in ast.walk(ast.parse(path.read_text())):
++                if isinstance(call, ast.Call) and isinstance(call.func, ast.Attribute) and call.func.attr in fields:
++                    unknown = {kw.arg for kw in call.keywords if kw.arg is not None} - fields[call.func.attr]
++                    if unknown:
++                        errors.append(f"{path.name}:{call.lineno}: {call.func.attr}: {sorted(unknown)}")
++        self.assertEqual(errors, [], "\n".join(errors))
++
++    def test_dma_views_use_current_public_signature(self):
++        definition = next(node for node in ast.parse((TLA / "view.py").read_text()).body
++                          if isinstance(node, ast.FunctionDef) and node.name == "view")
++        allowed = {arg.arg for arg in definition.args.args + definition.args.kwonlyargs}
++        errors = []
++        for call in ast.walk(ast.parse((UT / "dma/copy.py").read_text())):
++            if (isinstance(call, ast.Call) and isinstance(call.func, ast.Attribute)
++                    and isinstance(call.func.value, ast.Name) and call.func.value.id == "tla"
++                    and call.func.attr == "view"):
++                unknown = {kw.arg for kw in call.keywords if kw.arg is not None} - allowed
++                if unknown:
++                    errors.append(f"copy.py:{call.lineno}: {sorted(unknown)}")
++        self.assertEqual(errors, [], "\n".join(errors))
++
++
++if __name__ == "__main__":
++    unittest.main()

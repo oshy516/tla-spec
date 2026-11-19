@@ -30,6 +30,7 @@
 | [tla.cube.mmad_mx](spec/cube.md#api-tla-cube-mmad-mx) | 待&#8288;转&#8288;测 | 对带 E8M0 块缩放因子的矩阵做乘累加并更新 L0C | 未&#8288;登&#8288;记 | [cube.py](https://github.com/triton-lang/triton-ascend/blob/074cf62907f815694a01e5cdc4ac78a90610ae82/third_party/ascend/language/tla/cube.py#L257) | 陈&#8288;相&#8288;廷 | — |
 | [tla.scope.cube](spec/cube.md#api-tla-scope-cube) | 待&#8288;转&#8288;测 | 在 Cube 核执行域中构建编译期区域。以无参数 with 区域形式使用。跨核数据交接须显式同步 | 未&#8288;登&#8288;记 | [scope.py](https://github.com/triton-lang/triton-ascend/blob/074cf62907f815694a01e5cdc4ac78a90610ae82/third_party/ascend/language/tla/scope.py#L94) | 陈&#8288;相&#8288;廷 | 姜&#8288;正 |
 | [tla.cube.mmad](spec/cube.md#api-tla-cube-mmad) | 待&#8288;转&#8288;测 | 使用 L1 矩阵执行矩阵乘累加并更新 L0C | 未&#8288;登&#8288;记 | [cube.py](https://github.com/triton-lang/triton-ascend/blob/074cf62907f815694a01e5cdc4ac78a90610ae82/third_party/ascend/language/tla/cube.py#L115) | 陈&#8288;相&#8288;廷 | 姜&#8288;正 |
+| [tla.cube.mmad_l0](spec/cube.md#api-tla-cube-mmad-l0) | 不&#8288;转&#8288;测 | 显式消费 L0A/L0B 并更新 L0C | [待&#8288;评&#8288;审](tracking/cube.md#cube-008) | [cube.py](https://github.com/triton-lang/triton-ascend/blob/e53ed579d8efc227a499fcf2c78abe3e45ce2950/third_party/ascend/language/tla/cube.py#L267) | — | — |
 | [tla.set_ctrl](spec/cube.md#api-tla-set-ctrl) | 不&#8288;转&#8288;测 | 设置或清除一个硬件 CTRL bit | 未&#8288;登&#8288;记 | [dma.py](https://github.com/triton-lang/triton-ascend/blob/074cf62907f815694a01e5cdc4ac78a90610ae82/third_party/ascend/language/tla/dma.py#L880) | 陈&#8288;相&#8288;廷 | 姜&#8288;正 |
 
 <a name="simd-index"></a>

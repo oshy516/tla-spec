@@ -4,6 +4,20 @@
 
 以下 DMA、L0 搬运和填充约束面向 Ascend950（RegBase）。
 
+<a name="api-tla-cube-mmad-l0"></a>
+
+## tla.cube.mmad_l0
+
+**评审中，不转测。** 本节补齐显式 L0 乘累加入口的索引；候选参数和目标约束仍须单独确认，不能由 DMA-004 的结论推定为已确认规格。
+
+PR #2982 中的公开签名：`tla.cube.mmad_l0(a, b, acc, *, m, n, k, bias=None, clear_accum=False, disable_gemv=True, unit_flag_ctrl=None)`。
+
+返回：None。候选编译表示：`hivm.hir.mmadL0`。该操作直接消费 L0A/L0B 并写入 L0C，不隐式执行 L1→L0 搬运或 K 分块循环。
+
+当前只有 PR 源码证据，本条不代表 native IR、编译或 A5 精度验证通过。参数范围、物理布局、容量、offset 和同步的实现证据及待决问题见 [CUBE-008](../tracking/cube.md#cube-008)。既有 [L1→BT 的关闭结论](#api-tla-copy-l1-to-bt)保持有效，PR 中存在 bias 入口不等于本轮已开放 BT 链路。
+
+源码依据：[PR #2982 cube.py](https://github.com/triton-lang/triton-ascend/blob/e53ed579d8efc227a499fcf2c78abe3e45ce2950/third_party/ascend/language/tla/cube.py#L267)。
+
 <a name="api-tla-copy-ub-to-l1"></a>
 
 ## tla.copy_ub_to_l1

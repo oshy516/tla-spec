@@ -2,6 +2,28 @@
 
 [返回接口目录](../README.md)
 
+<a name="cube-008"></a>
+
+## CUBE-008 · tla.cube.mmad_l0
+
+[查看入口](../spec/cube.md#api-tla-cube-mmad-l0)
+
+问题：DMA-004 已引用显式 MMAD L0 作为 L0 DMA 的消费者，但主表和 Cube 规格缺少该入口及独立评审边界。补充索引，避免将 DMA 的待转测结论套用于完整乘累加链路。
+
+查阅实现：Triton Ascend PR #2982 `e53ed579d8efc227a499fcf2c78abe3e45ce2950`；PR #3284 中的 MMAD 提交 `90b1715ba45bb88a23ba1e0b8ab01050417b25f0` 与其稳定 patch-id 相同，不应重复集成。以下仅为实现检查，不构成新规格或实机通过结论。
+
+- Python 当前接受相同 FP16/BF16 的 L0A/L0B 和 FP32 L0C；对应物理 shape 为 `(K/16,M/16,16,16)`、`(K/16,N/16,16,16)`、`(N/16,M/16,16,16)`，要求紧凑 stride。
+- 当前维度检查为 M/N/K 各自是 `[16,2048]` 内的 16 倍数，同时受 L0A/L0B 各 64KiB、L0C 256KiB 的容量约束；维度范围不意味着所有组合都可用。多 buffer 的总占用仍需内存规划校验。
+- 当前静态有效 offset 按元素计，A/B、acc 的字节对齐分别检查 512B、1024B；未知 offset 交给后端。仍须验证 subview/reshape 后的静态诊断、动态地址及总容量。
+- 无 bias 时，`clear_accum=True` 替换累加器，False 读取旧值并累加；实现还接受运行时标量 i1。首次累加前须初始化，跨 K 分块的 buffer 复用须保留 MTE1→M、M→MTE1 及 M→Fixpipe 的依赖。
+- `disable_gemv` 当前仅接受 True；UnitFlag 当前仅接受缺省或 DISABLED。两者的目标限制、自动同步与显式同步模式须分别评审，不能删除事件或忽略生命周期来获得通过。
+
+待决：确认无 bias 的正式参数表和 A5 目标范围；核对 Python→C++ builder→HIVM→模板的操作数顺序；验证单次/K 分块、FP16/BF16、单缓冲/ping-pong、容量边界及精度。bias 依赖的 L1→BT 在 CUBE-003 已关闭，不能因 PR 暴露该参数而视为已开放。
+
+版本配套风险：PR #2982/#3284 带有较旧 AscendNPU-IR pin；#3284 的 L1→L0 简化 builder 还需配套 AscendNPU-IR PR #5251。源码合入与现有 BishengIR 二进制是否包含相同接口是两个问题，须单独记录。PR #3267 已移除 Fixpipe 配置的 UnitFlag 字段，旧 MMAD 测试调用须迁移到当前接口，同时保留显式同步。
+
+本条仅完成源码审查；未据此更新其他接口的实测状态。结论：不转测，待完成上述评审和目标验证。
+
 <a name="cube-001"></a>
 
 ## CUBE-001 · tla.copy_ub_to_l1
